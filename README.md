@@ -118,6 +118,8 @@ Once complete, run the generated native executable to ensure it works:
 
 You should see a Spring Boot startup banner, verifying that your native image was successfully built.
 
+> If your application behaves differently than on a Java VM, refer to the [Troubleshoot Native Image Run-Time Errors](https://www.graalvm.org/latest/reference-manual/native-image/guides/troubleshoot-run-time-errors/) guide.
+
 ## Step 5: Package the Native Image for AWS Lambda Deployment
 
 For deployment to AWS Lambda, you need to package the native image together with a bootstrap file into an archive.
