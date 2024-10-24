@@ -9,10 +9,10 @@ If you take is further and complile your project ahead of time into a native bin
 
 Install a GraalVM JDK. 
 The easiest way to get started is with [SDKMAN!](https://sdkman.io/jdks/#graal):
-    ```bash
-    sdk install java 23.0.1-graal
-    ```
-    For other download options, see [GraalVM Downloads](https://www.graalvm.org/downloads/).
+```bash
+sdk install java 23.0.1-graal
+```
+For other download options, see [GraalVM Downloads](https://www.graalvm.org/downloads/).
 
 Follow the steps below to create an application from scratch.
 However, you can clone this repository containing a completed example and jump to the step 5.3:
@@ -215,7 +215,7 @@ Create a descriptor file named _native.xml_ in _src/assembly_ for the Maven Asse
 </assembly>
 ```
 
-### 5.3. Create a Native Image Archive
+### 5.3. Create a ZIP Containing the Native Image
 
 Now re-compile your Spring Boot application by packaging the native image into a ZIP file:
 ```bash
