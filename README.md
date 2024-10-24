@@ -1,9 +1,10 @@
-# Compiling a Spring Boot 3 REST API Application with Native Image and Deploying It to AWS Lambda
+# Deploying a Native Spring Boot 3 REST API Application to AWS Lambda
+
+AWS Lambda is a possible solution to host a Spring Boot application.
+If you take it further and complile the application ahead of time into a native binary with [GraalVM Native Image](https://www.graalvm.org/latest/reference-manual/native-image/), it can dramatically reduce the cold start times of the application, which is crucial for serverless deployments that may scale up and down frequently.
 
 This guide is an effort to extend the exisiting [Quick Start Spring Boot 3](https://github.com/aws/serverless-java-container/wiki/Quick-start---Spring-Boot3) documentation with steps necessary to compile a Spring Boot 3 Serverless application ahead of time with GraalVM Native Image and package it for deployments to AWS Lambda.
-
-AWS Lambda is a possible solution to host your Spring Boot project.
-If you take is further and complile your project ahead of time into a native binary with [GraalVM Native Image](https://www.graalvm.org/latest/reference-manual/native-image/), it can dramatically reduce the cold start times of the application, which is crucial for serverless deployments that may scale up and down frequently.
+AWS Lambda offers a [custom runtime option](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-provided.html) which is exactly what is needed to deploy a native executable file that does not require a JRE to run.
 
 ### Prerequisites
 
@@ -37,29 +38,6 @@ This guide will focus on Maven.
 
 The key class generated is `StreamLambdaHandler`, which will handle Lambda invocations.
 
-The distinguishing project dependencies based on the archetype are:
-```xml
-<dependency>
-    <groupId>com.amazonaws.serverless</groupId>
-    <artifactId>aws-serverless-java-container-springboot3</artifactId>
-    <version>2.0.1</version>
-</dependency>
-<dependency>
-    <groupId>com.amazonaws.serverless</groupId>
-    <artifactId>aws-serverless-java-container-core</artifactId>
-    <version>2.0.1</version>
-    <classifier>tests</classifier>
-    <type>test-jar</type>
-    <scope>test</scope>
-</dependency>
-<dependency>
-    <groupId>org.apache.httpcomponents.client5</groupId>
-    <artifactId>httpclient5</artifactId>
-    <version>5.2.1</version>
-    <scope>test</scope>
-</dependency>
-```
-
 ## Step 2: Compile and Package the Application
 
 To ensure your setup is correct, compile and package your application on the Java VM:
@@ -67,52 +45,33 @@ To ensure your setup is correct, compile and package your application on the Jav
 mvn clean package
 ```
 
-The Maven Shade plugin, `maven-shade-plugin`, creates an uber JAR including all necessary dependencies inside the JAR.
-This is useful for creating standalone applications.
-It also excludes `org.apache.tomcat.embed`, because it is not needed in a serverless environment (AWS Lambda uses a different mechanism to run web applications).
-
 The Maven Assembly Plugin, `maven-assembly-plugin`, packages the project into a ZIP file with all runtime dependencies, necessary for deployment to AWS Lambda.
-The _spring-lambda-1.0-SNAPSHOT-lambda-package.zip_ file is created in the _target/_ directory.
+The _spring-function-1.0-SNAPSHOT-lambda-package.zip_ file is created in the _target/_ directory.
 
 ## Step 3: Prepare for a Native Image Build
 
-### 3.1. Add Native Build Tools and Spring Boot Maven Plugins
-
-To compile your Spring Boot application into a native image, you will need to update your _pom.xml_ by adding the Native Build Tools and Spring Boot Maven plugins. 
-Insert the following `<build>` section at the end of the file before the closing `</project>` tag:
-
-```xml
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.graalvm.buildtools</groupId>
-            <artifactId>native-maven-plugin</artifactId>
-            <version>0.10.3</version>
-        </plugin>
-        <plugin>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-maven-plugin</artifactId>
-        </plugin>
-    </plugins>
-</build>
-```
-These plugins will handle the ahead-of-time compilation with GraalVM Native Image.
-
-### 3.2. Configure the Native Image Build Profile
-
-In the <profiles> section of your _pom.xml_, define a new profile that will be used to build a native image of your application.
-Add the following profile:
+To compile your Spring Boot application into a native image, you need to update _pom.xml_ by adding the [Native Build Tools](https://graalvm.github.io/native-build-tools/latest/index.html) and Spring Boot Maven plugins.
+In the <profiles> section of _pom.xml_, define a new `native` profile that will handle the ahead-of-time compilation of your application:
 ```xml
 <profile>
     <id>native</id>
     <build>
         <plugins>
             <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <jvmArguments>-agentlib:native-image-agent=config-merge-dir=src/main/resources/META-INF/native-image/</jvmArguments>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.graalvm.buildtools</groupId>
                 <artifactId>native-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>spring.lambda.Application</mainClass>
-                    <imageName>native-function-2</imageName>
+                    <imageName>native-function</imageName>
+                    <buildArgs>
+                        <buildArg>--enable-url-protocols=http</buildArg>
+                    </buildArgs>
                 </configuration>
                 <executions>
                     <execution>
@@ -121,14 +80,21 @@ Add the following profile:
                         </goals>
                         <phase>package</phase>
                     </execution>
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <phase>test</phase>
+                    </execution>
                 </executions>
             </plugin>
-        </plugins>
-    </build>
+        <plugins>
+    <build>
 </profile>
 ```
-This profile speficies how the native image is built and what the output file should be named.
-If you would like to pass additional options to `native-image`, add those in the plugin configuration within the profile:
+This profile speficies how the native image should be built and what the output file name should be.
+If you would like to pass additional options to `native-image`, add those in the plugin configuration:
 ```xml
 <configuration>
 	<buildArgs>
@@ -150,11 +116,11 @@ Once complete, run the generated native executable to ensure it works:
 ./target/native-function
 ```
 
-You should see the familiar Spring Boot startup banner, verifying that your native image was successfully built.
+You should see a Spring Boot startup banner, verifying that your native image was successfully built.
 
-## Step 5: Package the Application for AWS Lambda
+## Step 5: Package the Native Image for AWS Lambda Deployment
 
-For deployment to AWS Lambda, you need to package the native image and its dependencies into a ZIP file.
+For deployment to AWS Lambda, you need to package the native image together with a bootstrap file into an archive.
 
 ### 5.1. Add a Package Stage to the Native Profile 
 
@@ -164,7 +130,7 @@ Add the Maven Assembly plugin to the `native` profile in _pom.xml_ that will pac
     <artifactId>maven-assembly-plugin</artifactId>
     <executions>
         <execution>
-            <id>native-archive</id>
+            <id>native-zip</id>
             <phase>package</phase>
             <goals>
                 <goal>single</goal>
@@ -182,7 +148,8 @@ Add the Maven Assembly plugin to the `native` profile in _pom.xml_ that will pac
 
 ### 5.2. Create a Descriptor File for the Maven Assembly Plugin
 
-Create a descriptor file named _native.xml_ in _src/assembly_ for the Maven Assembly plugin, specifying how the artifacts should be bundled. It defines the packaging format and the entry point for an AWS Lambda invocation.
+Create a descriptor file named _native.xml_ in _src/assembly_ for the Maven Assembly plugin, specifying how the artifacts should be bundled.
+It defines the packaging format and the entry point for an AWS Lambda invocation.
 ```xml
 <assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -215,42 +182,31 @@ Create a descriptor file named _native.xml_ in _src/assembly_ for the Maven Asse
 </assembly>
 ```
 
-### 5.3. Create a ZIP Containing the Native Image
+### 5.3. Create a Bootstrap File
+
+1. Under _src/_, create a new directory _shell/native_. Then create a new file in it named _bootstrap_.
+
+2. Copy the following contents to the file:
+    ```shell
+    #!/bin/sh
+    cd ${LAMBDA_TASK_ROOT:-.}
+    ./target/native-function -Dlogging.level.org.springframework=DEBUG -Dlogging.level.com.amazonaws.serverless.proxy.spring=DEBUG
+    ```
+
+3. Update file permissions to make it executable:
+    ```bash
+    chmod +x src/shell/native/bootstrap 
+    ```
+
+### 5.4. Create a ZIP File
 
 Now re-compile your Spring Boot application by packaging the native image into a ZIP file:
 ```bash
 mvn -Pnative native:compile
 ```
-Once packaged, the archive _spring-lambda-1.0-SNAPSHOT-native.zip_ can be uploaded to AWS Lambda for execution.
-
-## Step 6: Deploy to AWS Lambda from the AWS Management Console
-
-You can now proceed to deploy it to AWS Lambda. 
-
-1. Navigate to the [AWS Management Console](https://aws.amazon.com/console/), select **AWS Lambda**, and create a new Lambda function.
-In the function creation wizard, make sure to select **Author from scratch** and **Java 21** as the runtime. Click create.
-
-2. Upload the ZIP file containing your application. Click **Upload from** and select the ZIP file from your local machine. 
-
-3. Edit the **Runtime settings** and set the handler for the Lambda function, defining the entry point for the application and how requests should be handled. In this case, enter `spring.lambda.StreamLambdaHandler` for the handler class, and `handleRequest` for the method name. Click **Save** to apply the configuration.
-
-4. Test your Lambda function from the console. Click **Test**, and create a new test event using the **API Gateway AWS Proxy** template. Enter `/ping` for the path to the resource you need to test and click **Test**. You should see a successful response from your Lambda function.
-
-Now your Lambda function is deployed and running.
-Lastly, you can create an API Gateway to forward incoming requests to the Lambda function.
-
-## Step 7: Create an API Gateway
-
-The API Gateway acts as a proxy, forwarding incoming requests to the Lambda function.
-
-1. In the AWS Management Console, select **API Gateway**. Click **Create API** and choose **REST API**.
-
-2. Enter a name, and click **Create API**. This will create a new REST API in API Gateway.
-
-3. Configure the integration between the API Gateway and your Lambda function. Select a resource and method, and click **Integration Request**. Choose the Lambda function as the integration type and select the necessary Lambda function from the list. **Save** to apply the changes.
-
-4. Deploy the API by creating a new stage. This will provide you with a unique **Invoke URL**. You can now access your REST API using the provided Invoke URL.
+Once packaged, the archive _spring-function-1.0-SNAPSHOT-native.zip_ can be uploaded to an AWS Lambda custom runtime for execution.
 
 ### Summary
 
-By following these steps, you have successfully created a Spring Boot 3 serverless application, complied it into a native image, and deployed to AWS Lambda. With the benefits of GraalVM Native Image, your application can consume fewer resources, making it ideal for cloud-native serverless workloads.
+By following these steps, you have successfully created a Spring Boot 3 serverless application and complied it into a native image, ready to be deployed to a [custom runtime](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-provided.html) in AWS Lambda.
+With the benefits of GraalVM Native Image, your application can consume fewer resources, making it ideal for cloud-native serverless workloads.

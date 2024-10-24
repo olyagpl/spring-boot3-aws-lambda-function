@@ -1,5 +1,6 @@
-# Build results
+# Build results and resources
 target/
+src/main/resources/META-INF/native-image
 
 # VS Code
 .vscode/
