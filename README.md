@@ -5,21 +5,22 @@ This guide is an effort to extend the exisiting [Quick Start Spring Boot 3](http
 AWS Lambda is a possible solution to host your Spring Boot project.
 If you take is further and complile your project ahead of time into a native binary with [GraalVM Native Image](https://www.graalvm.org/latest/reference-manual/native-image/), it can dramatically reduce the cold start times of the application, which is crucial for serverless deployments that may scale up and down frequently.
 
-### Prerequisites 
+### Prerequisites
 
 Install a GraalVM JDK. 
 The easiest way to get started is with [SDKMAN!](https://sdkman.io/jdks/#graal):
-```bash
-sdk install java 23-graal
-```
-For other download options, see [GraalVM Downloads](https://www.graalvm.org/downloads/).
+    ```bash
+    sdk install java 23.0.1-graal
+    ```
+    For other download options, see [GraalVM Downloads](https://www.graalvm.org/downloads/).
 
 Follow the steps below to create an application from scratch.
-However, you can clone this repository containing a completed example:
+However, you can clone this repository containing a completed example and jump to the step 5.3:
 ```bash
 git clone https://github.com/olyagpl/spring-boot3-aws-lambda-function.git
 cd spring-boot3-aws-lambda-function
 ```
+
 ## Step 1: Create a Spring Boot 3 Serverless Application
 
 The guide starts with creating a Spring Boot 3 serverless application from the Maven archetype `aws-serverless-springboot3-archetype`.
@@ -71,7 +72,7 @@ This is useful for creating standalone applications.
 It also excludes `org.apache.tomcat.embed`, because it is not needed in a serverless environment (AWS Lambda uses a different mechanism to run web applications).
 
 The Maven Assembly Plugin, `maven-assembly-plugin`, packages the project into a ZIP file with all runtime dependencies, necessary for deployment to AWS Lambda.
-The ZIP file is created in the _target_ directory.
+The _spring-lambda-1.0-SNAPSHOT-lambda-package.zip_ file is created in the _target/_ directory.
 
 ## Step 3: Prepare for a Native Image Build
 
@@ -110,7 +111,7 @@ Add the following profile:
                 <groupId>org.graalvm.buildtools</groupId>
                 <artifactId>native-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>aws.function.Application</mainClass>
+                    <mainClass>spring.lambda.Application</mainClass>
                     <imageName>native-function-2</imageName>
                 </configuration>
                 <executions>
@@ -141,7 +142,7 @@ Learn more in the [plugin documentation](https://graalvm.github.io/native-build-
 
 To compile your Spring Boot application into a native image, use the following command:
 ```bash
-./mvnw -Pnative native:compile
+mvn -Pnative native:compile
 ```
 This process should take less approximately 2 minutes.
 Once complete, run the generated native executable to ensure it works:
@@ -218,22 +219,22 @@ Create a descriptor file named _native.xml_ in _src/assembly_ for the Maven Asse
 
 Now re-compile your Spring Boot application by packaging the native image into a ZIP file:
 ```bash
-./mvnw -Pnative native:compile
+mvn -Pnative native:compile
 ```
-Once packaged, this ZIP file can be uploaded to AWS Lambda for execution.
+Once packaged, the archive _spring-lambda-1.0-SNAPSHOT-native.zip_ can be uploaded to AWS Lambda for execution.
 
 ## Step 6: Deploy to AWS Lambda from the AWS Management Console
 
 You can now proceed to deploy it to AWS Lambda. 
 
 1. Navigate to the [AWS Management Console](https://aws.amazon.com/console/), select **AWS Lambda**, and create a new Lambda function.
-In the function creation wizard, make sure to select **Author from scratch** and **Java 17** as the runtime. Click create.
+In the function creation wizard, make sure to select **Author from scratch** and **Java 21** as the runtime. Click create.
 
-2. Upload the ZIP file containing your application. Click **Upload** and select the _native.zip_ file from your local machine. 
+2. Upload the ZIP file containing your application. Click **Upload from** and select the ZIP file from your local machine. 
 
-3. Configure the runtime settings and set the handler for the Lambda function, defining the entry point for the application and how requests should be handled. In this case, enter `aws.function.StreamLambdaHandler` for the handler class, and `handleRequest` for the method name. Click **Save** to apply the configuration.
+3. Edit the **Runtime settings** and set the handler for the Lambda function, defining the entry point for the application and how requests should be handled. In this case, enter `spring.lambda.StreamLambdaHandler` for the handler class, and `handleRequest` for the method name. Click **Save** to apply the configuration.
 
-4. Test your Lambda function from the console. Click **Test**, and create a new test event using the **API Gateway AWS Proxy** template. Enter `/ping` for the path to the resource you need to test and click **Create**. You should see a successful response from your Lambda function.
+4. Test your Lambda function from the console. Click **Test**, and create a new test event using the **API Gateway AWS Proxy** template. Enter `/ping` for the path to the resource you need to test and click **Test**. You should see a successful response from your Lambda function.
 
 Now your Lambda function is deployed and running.
 Lastly, you can create an API Gateway to forward incoming requests to the Lambda function.
