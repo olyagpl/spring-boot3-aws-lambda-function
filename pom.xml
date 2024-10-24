@@ -185,6 +185,9 @@
                         <configuration>
                             <mainClass>spring.lambda.Application</mainClass>
                             <imageName>native-function</imageName>
+                            <buildArgs>
+                                <buildArg>-H:ThrowMissingRegistrationErrors=</buildArg>
+                            </buildArgs>
                         </configuration>
                         <executions>
                             <execution>
