@@ -42,7 +42,7 @@ The key class generated is `StreamLambdaHandler`, which will handle Lambda invoc
 
 To ensure your setup is correct, compile and package your application on the Java VM:
 ```bash
-mvn clean package
+./mvnw clean package
 ```
 
 The Maven Assembly Plugin, `maven-assembly-plugin`, packages the project into a ZIP file with all runtime dependencies, necessary for deployment to AWS Lambda.
@@ -108,7 +108,7 @@ Learn more in the [plugin documentation](https://graalvm.github.io/native-build-
 
 To compile your Spring Boot application into a native image, use the following command:
 ```bash
-mvn -Pnative native:compile
+./mvnw -Pnative native:compile
 ```
 This process should take less approximately 2 minutes.
 Once complete, run the generated native executable to ensure it works:
@@ -204,7 +204,7 @@ It defines the packaging format and the entry point for an AWS Lambda invocation
 
 Now re-compile your Spring Boot application by packaging the native image into a ZIP file:
 ```bash
-mvn -Pnative native:compile
+./mvnw -Pnative native:compile
 ```
 Once packaged, the archive _spring-function-1.0-SNAPSHOT-native.zip_ can be uploaded to an AWS Lambda custom runtime for execution.
 
