@@ -76,12 +76,14 @@
                             <imageName>native-function</imageName>
                             <buildArgs>
 								<buildArg>--enable-url-protocols=http</buildArg>
+								<!-- Identify missing metadata configuration -->
+       							<buildArg>--exact-reachability-metadata</buildArg>
 							</buildArgs>
 						</configuration>
 						<executions>
 							<execution>
 								<goals>
-									<goal>build</goal>
+									<goal>compile-no-fork</goal>
 								</goals>
 								<phase>package</phase>
 							</execution>
